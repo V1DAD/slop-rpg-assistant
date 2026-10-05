@@ -46,7 +46,7 @@ Roda em Docker, acessada via Tailscale. Interface e comandos em pt-BR.
 
 ## Progresso (marque [x] ao concluir uma fase, com commit)
 - [x] fase0  Fundação
-- [ ] fase1  Autenticação e usuários
+- [x] fase1  Autenticação e usuários
 - [ ] fase2  Fichas, HP, condições
 - [ ] fase3  Itens, inventário e log
 - [ ] fase4a WebSocket autenticado e filtro de visibilidade
