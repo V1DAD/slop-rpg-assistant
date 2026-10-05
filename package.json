@@ -3,7 +3,7 @@
   "private": true,
   "workspaces": ["server", "web", "shared"],
   "scripts": {
-    "test": "npm run -w server test"
+    "test": "npx vitest run",
     "build": "npm run -w server build && npm run -w web build",
     "lint": "echo 'no lint'"
   },

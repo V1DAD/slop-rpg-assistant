@@ -1,11 +1,13 @@
-import Fastify from 'fastify';
+import http from 'http';
 
-const fastify = Fastify({
-  logger: true
+const server = http.createServer((req, res) => {
+  if (req.url === '/healthz' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok' }));
+    return;
+  }
+  res.writeHead(404);
+  res.end();
 });
 
-fastify.get('/healthz', async () => {
-  return { status: 'ok' };
-});
-
-export default fastify;
+export default server;
