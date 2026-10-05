@@ -45,7 +45,7 @@ Roda em Docker, acessada via Tailscale. Interface e comandos em pt-BR.
 - Commits no padrão Conventional Commits, um por fase (ou por etapa clara).
 
 ## Progresso (marque [x] ao concluir uma fase, com commit)
-- [ ] fase0  Fundação
+- [x] fase0  Fundação
 - [ ] fase1  Autenticação e usuários
 - [ ] fase2  Fichas, HP, condições
 - [ ] fase3  Itens, inventário e log
