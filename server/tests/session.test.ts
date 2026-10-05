@@ -30,12 +30,7 @@ beforeAll(async () => {
   const setCookie = loginRes.headers['set-cookie'];
   if (setCookie) adminCookie = setCookie[0].split(';')[0];
 });
-  listen = await server.listen({ port: 0, host: '127.0.0.1' });
-  const addr = listen.address();
-  if (typeof addr === 'object' && addr) {
-    port = addr.port;
-  } else throw new Error('Failed to get port');
-});
+
 
 afterAll(async () => {
   await listen.close();

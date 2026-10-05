@@ -3,6 +3,7 @@ import cookie from '@fastify/cookie';
 import { initDatabase } from './database';
 import argon2 from 'argon2';
 import db from './database';
+import crypto from 'crypto';
 import { createUser, getUserByUsername, getUserById, getAllUsers, updatePassword, deactivateUser } from './repository';
 import { createSession, findSessionByToken, deleteSession } from './auth';
 import { hasRole } from './policy';
