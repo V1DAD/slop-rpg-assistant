@@ -1,0 +1,30 @@
+FASE 6 - Encontros e NPCs
+
+LEIA: AGENTS.md, docs/spec/02-papeis-e-dados.md, docs/spec/04-comandos.md
+(só /encontro e /npc) e, em docs/spec/03-auth-e-paineis.md, a seção 6.3.
+
+FAÇA:
+1. NPCs/monstros (fichas sem login, kind=NPC) criados pelo GM.
+2. Encontro: iniciativa, ordem, turno atual, rodada, "próximo turno" que
+   decrementa a duração das condições.
+3. Visibilidade de HP de NPC (hidden_fields): jogadores não veem.
+4. Comandos /npc criar e /encontro iniciar|parar|proximo|add.
+5. Gerenciador de encontro no painel do GM.
+
+ACEITE:
+- O GM roda um combate de teste completo (teste automatizado de ponta a
+  ponta na camada de serviço).
+- Jogadores não recebem HP de NPC oculto.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

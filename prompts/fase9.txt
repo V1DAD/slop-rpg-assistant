@@ -1,0 +1,23 @@
+FASE 9 (OPCIONAL) - Extras
+
+LEIA: AGENTS.md e, em docs/spec/11-fases.md, a "FASE 9".
+
+FAÇA apenas UM extra por execução (peça ao usuário qual se houver dúvida):
+SFX sincronizados, tema claro, múltiplas campanhas, importação de fichas ou
+macros de rolagem salvas.
+
+ACEITE: o extra escolhido funciona, com testes, sem quebrar os testes
+existentes.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

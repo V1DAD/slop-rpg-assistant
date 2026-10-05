@@ -1,0 +1,29 @@
+FASE 4b - Reconexão, idempotência e versionamento
+
+LEIA: AGENTS.md e docs/spec/05-tempo-real.md.
+(Pressupõe que a fase 4a está concluída.)
+
+FAÇA:
+1. Reconexão automática com backoff exponencial. Ao reconectar, o cliente
+   pede um snapshot do que PODE ver e se ressincroniza.
+2. IDs de requisição (idempotência) e resposta ack/erro do servidor.
+3. Optimistic locking: campo "version" nas fichas; em conflito o servidor
+   devolve o estado atual.
+4. Indicador de conexão (online / reconectando) sempre visível.
+
+ACEITE:
+- Derrubar e religar a rede ressincroniza sem recarregar a página.
+- Testes de snapshot (só o que o usuário pode ver), idempotência e conflito.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

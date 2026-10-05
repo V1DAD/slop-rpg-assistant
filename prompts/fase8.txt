@@ -1,0 +1,31 @@
+FASE 8 - Endurecimento, Tailscale e documentação
+
+LEIA: AGENTS.md, docs/spec/08-seguranca.md, docs/spec/09-docker-tailscale.md,
+docs/spec/12-entregaveis.md e, em docs/spec/07-log-backup-ux.md, a 6.8.
+
+FAÇA:
+1. Passar toda a checklist de segurança (seção 8), marcando cada item e
+   indicando o teste ou arquivo que a comprova.
+2. Exportar/importar tudo em JSON; script de backup do SQLite usando a
+   API de backup (não cp) e sugestão de cron.
+3. `npm run seed` com 1 GM, 3 jogadores, itens e 1 playlist de teste.
+4. Documentação: docs/TAILSCALE.md (opções A e B), GUIA_DO_JOGADOR.md,
+   GUIA_DO_MESTRE.md, README final.
+5. PWA opcional (manifest + service worker mínimo, sem cache agressivo).
+
+ACEITE:
+- Instalação do zero seguindo apenas o README funciona.
+- Checklist de segurança toda marcada, com evidência.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

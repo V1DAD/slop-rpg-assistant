@@ -1,0 +1,38 @@
+FASE 1 - Autenticação e usuários
+
+LEIA: AGENTS.md, docs/spec/02-papeis-e-dados.md,
+docs/spec/08-seguranca.md e, em docs/spec/03-auth-e-paineis.md, apenas a
+seção 6.1.
+
+FAÇA:
+1. SQLite com migrações versionadas. Tabelas: users, sessions_auth, settings.
+2. Login/logout com cookie httpOnly + SameSite=Lax, token opaco com hash
+   no banco, expiração deslizante. "Encerrar todas as sessões".
+3. Senhas com argon2 (ou bcrypt se argon2 não compilar; registre em
+   DECISOES.md).
+4. Bootstrap do Mestre: tela única de criação OU ADMIN_USER/ADMIN_PASSWORD
+   no primeiro boot. Depois disso, a tela some.
+5. CRUD de jogadores pelo GM (criar, editar, desativar, resetar senha),
+   senha temporária e troca obrigatória no primeiro login.
+6. Rate limit no login (5 tentativas/minuto por IP+usuário).
+7. Módulo central de policy (esqueleto com papéis GM e PLAYER).
+8. Frontend mínimo: tela de login, página vazia pós-login, tela do GM para
+   gerenciar jogadores.
+
+ACEITE:
+- Jogador loga e vê uma página vazia.
+- Rota protegida sem login retorna 401.
+- Testes de sessão, policy e rate limit passando.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

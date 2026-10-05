@@ -1,0 +1,34 @@
+FASE 0 - Fundação (RPG Table Manager)
+
+LEIA: AGENTS.md, docs/spec/01-visao-e-requisitos.md,
+docs/spec/10-metodologia.md e, em docs/spec/09-docker-tailscale.md, apenas
+a parte "Docker".
+
+FAÇA:
+1. Monorepo com npm workspaces: /server /web /shared /docs. TypeScript,
+   ESLint + Prettier, Vitest. Scripts na raiz: test, build, lint.
+2. Servidor Fastify mínimo com GET /healthz (200) e logs estruturados.
+3. /web: apenas um placeholder React + Vite (sem telas reais ainda).
+4. Dockerfile multi-stage (usuário não-root, HEALTHCHECK em /healthz) e
+   docker-compose.yml (volumes ./data e ./music, porta 127.0.0.1:3000).
+   Crie .env.example documentado.
+5. Esqueletos curtos em docs/: ARQUITETURA.md, MODELO_DE_DADOS.md,
+   DECISOES.md, COMANDOS.md. README.md básico.
+6. Um teste Vitest simples para o /healthz.
+
+ACEITE:
+- `docker compose up` (ou podman) sobe e /healthz responde 200.
+- `npm test` passa.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

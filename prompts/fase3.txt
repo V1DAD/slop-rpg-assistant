@@ -1,0 +1,31 @@
+FASE 3 - Itens, inventário e log
+
+LEIA: AGENTS.md, docs/spec/02-papeis-e-dados.md,
+docs/spec/07-log-backup-ux.md (seção 6.7) e, em
+docs/spec/03-auth-e-paineis.md, as seções 6.2 e 6.3.
+
+FAÇA:
+1. Tabelas item_defs (com secret_notes só para o GM) e inventory.
+2. Catálogo de itens do GM (criar/editar/duplicar).
+3. Inventário: dar, tirar, equipar/desequipar, usar (consome 1),
+   descartar, peso total. Itens ocultos ao jogador (hidden_to_player).
+4. event_log com visibilidade (PUBLIC | GM_ONLY | PRIVATE_TO:<user>).
+   Log da mesa para jogadores e log completo para o GM.
+5. Abas Inventário e Log no painel do jogador; catálogo e log no do GM.
+
+ACEITE:
+- Fluxo completo: GM dá um item, o jogador o usa, tudo aparece no log.
+- Jogador nunca vê itens ocultos nem secret_notes (teste automatizado).
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

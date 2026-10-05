@@ -1,0 +1,34 @@
+FASE 5a - Parser de comandos e console
+
+LEIA: AGENTS.md, docs/spec/04-comandos.md e docs/spec/05-tempo-real.md.
+
+FAÇA:
+1. Registro de comandos tipado em /shared ou /server (nome, aliases,
+   papéis permitidos, schema de argumentos, exemplo de uso).
+2. Parser: /comando alvo args, aspas para nomes com espaço, alvo por nome
+   parcial sem acento e sem diferenciar maiúsculas, ambiguidade devolve a
+   lista de candidatos, aliases (/d, /c). Erros claros em pt-BR com exemplo.
+3. /ajuda e /ajuda <comando> gerados a partir do registro.
+4. /rolar (ex.: 2d6+3 descrição) e "/rolar -s" (secreta, só GM). Rolagem
+   pública vai para o log da mesa.
+5. Console fixo no rodapé do web: histórico (seta para cima), autocomplete
+   de comandos e nomes, atalho "/" para focar. Texto sem "/" vira chat.
+6. Pelo menos 40 testes do parser (aspas, acentos, ambiguidade,
+   permissões, argumentos faltando, texto estranho).
+
+ACEITE:
+- >= 40 testes do parser passando.
+- /ajuda e /rolar funcionam pelo console.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

@@ -1,0 +1,35 @@
+FASE 2 - Fichas, atributos, HP e condições (interface gráfica)
+
+LEIA: AGENTS.md, docs/spec/02-papeis-e-dados.md,
+docs/spec/07-log-backup-ux.md (parte UX, seção 7) e, em
+docs/spec/03-auth-e-paineis.md, as seções 6.2 e 6.3.
+Em docs/spec/08-seguranca.md, apenas o item de autorização por recurso.
+
+FAÇA:
+1. Tabelas: characters, attributes, conditions, event_log (básico).
+2. Templates de ficha em JSON: "Genérico" e "D&D 5e simplificado". O GM
+   pode duplicar/editar templates.
+3. CRUD de personagens, edição de atributos, HP atual/máx/temporário
+   (dano consome temporário primeiro), XP/nível, condições.
+4. Policy: jogador só lê a própria ficha e só edita campos liberados;
+   o GM lê e edita tudo.
+5. Painel do jogador (cabeçalho com HP, aba Ficha) e painel do GM (cards
+   de jogadores com ações rápidas +/- HP). Mobile-first, tema escuro.
+6. Registrar mudanças de HP/status no event_log.
+
+ACEITE:
+- GM edita o HP de um jogador e este NÃO vê nada de outro jogador.
+- Testes de policy cobrindo leitura e escrita cruzada entre jogadores.
+
+REGRAS
+- Faça SOMENTE esta fase. Não adiante fases futuras nem adicione extras.
+- Leia AGENTS.md e apenas os arquivos listados acima. Não leia a spec toda.
+- Se já existir trabalho desta fase (veja `git log` e `git status`),
+  continue de onde parou em vez de recomeçar.
+- Escreva os testes junto com o código. Rode-os e corrija até passarem.
+  Não diga que está pronto sem ter rodado.
+- Fique dentro do diretório do projeto; use caminhos relativos.
+- Ao terminar: marque o critério de aceite (cada item, dizendo o que foi
+  verificado), marque a fase em AGENTS.md, faça commit (Conventional
+  Commits) e escreva um resumo curto: o que foi feito, o que falta.
+  Depois PARE. Não continue para a próxima fase.

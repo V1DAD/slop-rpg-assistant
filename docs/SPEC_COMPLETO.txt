@@ -1,0 +1,463 @@
+================================================================================
+PROMPT PARA AGENTE LOCAL: "RPG TABLE MANAGER"
+Site de gerenciamento de mesa de RPG com música sincronizada
+================================================================================
+
+PAPEL
+-----
+Você é um engenheiro de software sênior e vai construir, do zero e de ponta a
+ponta, uma aplicação web para uma mesa de RPG. Trabalhe em fases, entregue algo
+funcionando ao final de cada fase, teste antes de avançar e documente tudo.
+Se uma decisão não estiver definida aqui, escolha a opção mais simples que
+atenda aos requisitos, registre a decisão em docs/DECISOES.md e siga em frente.
+Só pergunte ao usuário quando a dúvida bloquear o trabalho.
+
+--------------------------------------------------------------------------------
+1. VISÃO GERAL
+--------------------------------------------------------------------------------
+Uma aplicação web usada por 1 Mestre (GM) e N jogadores (tipicamente 3 a 8)
+durante sessões de RPG de mesa. Funções principais:
+
+  a) Gerenciar fichas: vida (HP), status/atributos, condições, itens, dinheiro,
+     XP/nível, notas.
+  b) Cada jogador só vê e (dentro de limites) edita o que é DELE. O Mestre vê
+     e edita tudo.
+  c) Todo gerenciamento pode ser feito de DUAS formas equivalentes:
+        - Interface gráfica (botões, formulários, barras de vida, drag-and-drop)
+        - Comandos de texto num console/chat (ex.: "/dano Thorin 7")
+  d) Player de música sincronizado: o Mestre controla playlists e todos os
+     clientes ouvem a mesma faixa, no mesmo ponto, ao mesmo tempo.
+  e) Tudo em tempo real (WebSocket): quando o Mestre reduz o HP de alguém, a
+     tela do jogador atualiza na hora.
+  f) Roda 100% localmente em um container Docker e é acessado remotamente
+     via Tailscale (sem expor nada à internet pública).
+
+Idioma da interface e dos comandos: Português do Brasil (pt-BR). Prepare os
+textos para internacionalização futura, mas não implemente outros idiomas agora.
+
+--------------------------------------------------------------------------------
+2. REQUISITOS NÃO FUNCIONAIS
+--------------------------------------------------------------------------------
+- Usuários simultâneos: até ~10. Não otimize para escala; otimize para
+  simplicidade, robustez e baixa manutenção.
+- Responsivo: jogadores usarão celular com frequência. Mobile-first.
+- Persistência: os dados sobrevivem a reinício do container (volume Docker).
+- Segurança: ver seção 8. Nenhum dado de um jogador pode vazar para outro,
+  nem por API, nem por WebSocket, nem por comando de texto.
+- Latência de sincronização de música: desvio máximo aceitável entre clientes
+  de ~150 ms em rede Tailscale normal.
+- Observabilidade mínima: logs estruturados e endpoint /healthz.
+- Código com testes automatizados nas partes críticas (permissões, parser de
+  comandos, lógica de HP/itens, sincronização de relógio).
+
+--------------------------------------------------------------------------------
+3. STACK SUGERIDA (pode trocar se justificar em DECISOES.md)
+--------------------------------------------------------------------------------
+Backend ......... Node.js 20 + TypeScript + Fastify
+Tempo real ...... WebSocket (biblioteca "ws" ou Socket.IO)
+Banco ........... SQLite (better-sqlite3) em arquivo no volume /data
+                  + migrações versionadas (ex.: drizzle-kit ou SQL puro)
+Validação ....... Zod em TODA entrada (HTTP, WebSocket, comandos)
+Senhas .......... argon2 (preferido) ou bcrypt
+Frontend ........ React + Vite + TypeScript (ou Svelte, se preferir menos código)
+                  CSS: Tailwind ou CSS modules. Sem frameworks pesados de UI.
+Áudio ........... Web Audio API / elemento <audio> com arquivos locais
+Testes .......... Vitest (unidade) + Playwright (um fluxo E2E básico)
+Container ....... Dockerfile multi-stage + docker-compose.yml
+Rede ............ Tailscale (ver seção 9)
+
+Monorepo simples:
+  /server   /web   /shared (tipos e schemas Zod compartilhados)   /docs
+
+--------------------------------------------------------------------------------
+4. PAPÉIS E PERMISSÕES
+--------------------------------------------------------------------------------
+Papéis: GM (Mestre) e PLAYER (Jogador).
+
+GM pode:
+  - Criar/editar/remover contas de jogadores e resetar senhas
+  - Ver e editar TODAS as fichas, itens, status
+  - Criar itens-modelo (catálogo) e distribuí-los
+  - Criar NPCs/monstros (fichas sem login) e rastrear o HP deles em "encontro"
+  - Controlar o player de música (play, pause, seek, próxima, volume mestre,
+    playlists, fila)
+  - Executar todos os comandos
+  - Ver o log de eventos completo
+  - Marcar campos como "ocultos ao jogador" (ex.: HP de NPC, item amaldiçoado
+    cuja natureza o jogador ainda não descobriu)
+
+PLAYER pode:
+  - Ver apenas a PRÓPRIA ficha (e, opcionalmente, um resumo público do grupo
+    se o GM habilitar: nome, HP em barra sem números, condições)
+  - Editar apenas campos que o GM liberar (padrão: notas, uso/equipar itens,
+    gastar/recuperar recursos próprios, HP temporário próprio)
+  - Rolar dados (/rolar) e ver o resultado no log da mesa
+  - Ouvir a música; ajustar o PRÓPRIO volume local e dar mute (isso não afeta
+    os outros)
+  - Usar comandos permitidos ao seu papel, SEMPRE restritos à própria ficha
+
+Regra de ouro: a verificação de permissão acontece NO SERVIDOR, em um único
+módulo central (policy). O frontend apenas esconde botões; nunca é a barreira.
+
+--------------------------------------------------------------------------------
+5. MODELO DE DADOS (ponto de partida; refine conforme necessário)
+--------------------------------------------------------------------------------
+users          id, username (único), password_hash, role, created_at, disabled
+characters     id, owner_user_id (nullable p/ NPC), name, kind (PC|NPC),
+               class_or_concept, level, xp, hp_current, hp_max, hp_temp,
+               currency (JSON: moedas), notes, data (JSON livre p/ campos
+               específicos do sistema), hidden_fields (JSON)
+attributes     id, character_id, key, label, value, modifier(opcional), order
+               (ex.: Força, Destreza... totalmente configurável, nada fixo)
+conditions     id, character_id, name, description, duration_rounds(nullable)
+item_defs      id, name, description, weight, value, tags (JSON), properties
+               (JSON), image(optional), secret_notes (só GM)
+inventory      id, character_id, item_def_id, quantity, equipped, custom_name,
+               custom_notes, hidden_to_player (bool)
+event_log      id, ts, actor_user_id, character_id(nullable), type, payload
+               (JSON), visibility (PUBLIC|GM_ONLY|PRIVATE_TO:<user>)
+tracks         id, title, artist, file_path, duration_sec, tags
+playlists      id, name, created_by
+playlist_items id, playlist_id, track_id, position
+sessions_auth  id, user_id, token_hash, expires_at, user_agent
+settings       key, value (ex.: "jogadores veem resumo do grupo", volume mestre)
+
+Sistema de regras agnóstico: NÃO hard-code D&D. Ofereça "templates de ficha"
+(JSON) que definem atributos, recursos e campos. Entregue 2 templates prontos:
+"Genérico" e "D&D 5e simplificado". Permita ao GM duplicar/editar templates.
+
+--------------------------------------------------------------------------------
+6. FUNCIONALIDADES DETALHADAS
+--------------------------------------------------------------------------------
+
+6.1 Autenticação
+  - Tela de login (usuário + senha). Sem cadastro público.
+  - Primeiro boot: se não houver GM, a aplicação mostra uma tela única de
+    "criar conta do Mestre" (ou lê ADMIN_USER/ADMIN_PASSWORD de variável de
+    ambiente na primeira inicialização). Depois disso, a tela some.
+  - O GM cria contas dos jogadores e define uma senha temporária; o jogador
+    deve trocá-la no primeiro login.
+  - Sessão via cookie httpOnly + SameSite=Lax (+ Secure quando em HTTPS),
+    tokens opacos guardados com hash no banco, expiração deslizante (ex.: 14 dias)
+  - Logout e "encerrar todas as sessões".
+  - Rate limiting no login (ex.: 5 tentativas/minuto por IP+usuário).
+
+6.2 Painel do jogador
+  - Cabeçalho com nome, nível, barra de HP (atual/máx/temp), condições.
+  - Abas: Ficha | Inventário | Notas | Log da mesa | Música (mini-player).
+  - Inventário: lista com quantidade, equipar/desequipar, usar (consome 1),
+    descartar, ver descrição. Peso total e carga se habilitado.
+  - Edição inline com confirmação visual; mudanças aparecem em tempo real.
+  - Funciona bem no celular (botões grandes, sem hover obrigatório).
+
+6.3 Painel do Mestre
+  - Visão geral: cards de todos os jogadores com HP, condições, ações rápidas
+    (+/- HP, aplicar condição, dar item, dar XP).
+  - Gerenciador de encontro: lista de NPCs/monstros com HP, iniciativa
+    (ordem, turno atual, rodada), botão "próximo turno" (decrementa duração
+    das condições).
+  - Catálogo de itens: criar/editar/duplicar; arrastar para um jogador ou
+    usar o comando /dar.
+  - Gerenciador de usuários/fichas.
+  - Console de comandos fixo no rodapé (ver 6.4).
+  - Log de eventos filtrável, com desfazer (undo) dos últimos N eventos
+    reversíveis (dano, cura, item dado/retirado, XP).
+
+6.4 Sistema de comandos de texto (requisito central)
+  Um console/chat único aceita comandos que começam com "/". Texto sem "/" é
+  mensagem de chat da mesa (opcional, mas barato de fazer).
+
+  Princípio: INTERFACE GRÁFICA E COMANDOS CHAMAM A MESMA CAMADA DE SERVIÇO.
+  Nunca duplique regras de negócio. Fluxo:
+      UI ou texto  ->  Command (objeto tipado)  ->  CommandHandler
+      ->  policy (permissão)  ->  transação no banco  ->  evento no log
+      ->  broadcast WebSocket filtrado por visibilidade
+
+  Parser:
+    - Gramática simples e tolerante: /comando alvo args... com aspas para nomes
+      com espaço ("Sir Aldric").
+    - Alvo por nome parcial, case-insensitive e sem acento ("thor" -> Thorin).
+      Se ambíguo, responder com a lista de candidatos (não adivinhar).
+    - Aliases (/d = /dano, /c = /curar).
+    - Autocomplete no console: comandos, nomes de personagens e de itens.
+    - Histórico com seta para cima.
+    - Mensagens de erro claras em pt-BR, com exemplo de uso.
+    - /ajuda e /ajuda <comando> geradas a partir do registro de comandos.
+
+  Comandos mínimos (GM = só Mestre; P = jogador, só na própria ficha):
+    /rolar 2d6+3 [desc]          P e GM   rolagem pública; "/rolar -s ..." = secreta (GM)
+    /dano <alvo> <n> [tipo]      GM       reduz HP (consome HP temporário antes)
+    /curar <alvo> <n>            GM       aumenta HP até o máximo
+    /hp <alvo> <n|+n|-n>         GM       define ou ajusta HP
+    /hpmax <alvo> <n>            GM
+    /temp <alvo> <n>             GM       HP temporário
+    /status <alvo> <attr> <v>    GM       define atributo (aceita +n/-n)
+    /condicao <alvo> <nome> [rodadas]   GM    aplica condição
+    /remover-condicao <alvo> <nome>     GM
+    /dar <alvo> <item> [qtd]     GM       adiciona item (do catálogo ou criando)
+    /tirar <alvo> <item> [qtd]   GM       remove item
+    /usar <item>                 P        consome/usa item próprio
+    /equipar <item>, /desequipar <item>   P
+    /xp <alvo> <n>               GM       dá XP (calcula nível se houver tabela)
+    /ouro <alvo> <+n|-n> [moeda] GM
+    /ficha [alvo]                P (próprio) / GM (qualquer) — resumo no console
+    /inventario [alvo]           idem
+    /encontro iniciar|parar|proximo|add <npc> [iniciativa]   GM
+    /npc criar <nome> <hpmax>    GM
+    /musica play|pause|proxima|anterior|seek <mm:ss>|vol <0-100>   GM
+    /playlist <nome>             GM       carrega e toca playlist
+    /desfazer                    GM       desfaz último evento reversível
+    /ajuda
+
+  Teste do parser: crie uma bateria de testes (>= 40 casos) cobrindo aspas,
+  acentos, ambiguidade, permissões, argumentos faltando e injeção de texto
+  estranho.
+
+6.5 Tempo real
+  - Um único endpoint WebSocket autenticado pelo cookie de sessão.
+  - Canais por escopo: "user:<id>", "gm", "table" (público).
+  - O servidor decide QUEM recebe cada evento, de acordo com visibility e
+    permissões. Nunca envie o estado completo da mesa a um jogador.
+  - Reconexão automática com backoff; ao reconectar o cliente pede um
+    snapshot do que ele pode ver (ressincronização).
+  - Operações do cliente usam IDs de requisição (idempotência) e o servidor
+    responde com ack/erro.
+  - Concorrência: edições simultâneas na mesma ficha usam versão (campo
+    "version"/optimistic locking); conflito -> servidor devolve estado atual.
+
+6.6 Música sincronizada
+  Fonte do áudio (escolha MVP, mantenha interface para outras no futuro):
+    MVP: arquivos de áudio locais (mp3/ogg/opus/flac) enviados pelo GM para
+    o volume /music (upload pela UI e/ou pasta monitorada). O servidor serve
+    os arquivos por rota autenticada com suporte a HTTP Range.
+    Extra (fase final, opcional): faixa via URL de stream/YouTube embed. Avise
+    claramente na doc as limitações (política de autoplay, bloqueio de embeds,
+    termos de uso). Não use scraping/baixadores.
+
+  Arquitetura de sincronização (servidor é a autoridade):
+    - Estado de reprodução no servidor:
+        { trackId, status: playing|paused|stopped, anchorServerTime,
+          anchorPositionSec, queue[], loop, shuffle, masterVolume, revision }
+      Posição atual = anchorPositionSec + (agora_servidor - anchorServerTime)
+      quando "playing".
+    - Sincronização de relógio estilo NTP: cada cliente faz N pings
+      (ex.: 8 no início e a cada 30 s), mede RTT, escolhe as amostras de
+      menor RTT e calcula offset = serverTime - (clientSend + RTT/2).
+      Use performance.now() + Date.now() adequadamente.
+    - Ao receber estado, o cliente calcula a posição alvo e faz seek.
+      Correção contínua de deriva: a cada 2-5 s compara currentTime com o
+      alvo; se desvio < ~40 ms ignora; entre 40 e 300 ms ajusta
+      playbackRate levemente (0.97-1.03); acima de 300 ms faz seek direto.
+    - Pré-carregar (preload) a próxima faixa da fila para transição sem gap.
+    - Entrada tardia: quem entra no meio entra na posição correta.
+    - Política de autoplay dos navegadores: exigir um clique no botão
+      "Entrar no áudio da mesa" para destravar o AudioContext; mostrar estado
+      claro (conectado/sincronizando/mutado/bloqueado).
+    - Jogador controla só o próprio volume/mute localmente.
+    - Efeitos sonoros/ambiência (SFX): botão simples do GM para tocar um
+      efeito curto sincronizado (ex.: trovão) sobre a música. (Fase opcional.)
+    - Mostrar no UI, em modo debug, o offset do relógio e o desvio atual.
+  Testes: simular dois clientes com relógios defasados e RTT variável e
+  verificar que a posição calculada converge dentro da tolerância.
+
+6.7 Log de eventos e histórico
+  - Todo comando/ação gera evento com autor, alvo, antes/depois e visibilidade.
+  - Log público da mesa (rolagens, danos visíveis) e log privado do GM.
+  - Exportação do log da sessão em .txt ou .md.
+
+6.8 Backup e exportação
+  - Botão do GM "Exportar tudo" (JSON) e "Importar".
+  - Script de backup do SQLite (usando a API de backup do SQLite, não cp de
+    arquivo em uso) documentado, com sugestão de cron.
+
+--------------------------------------------------------------------------------
+7. UX / INTERFACE
+--------------------------------------------------------------------------------
+  - Tema escuro por padrão (uso em mesa com luz baixa) + opção de tema claro.
+  - Barra de HP com cores por faixa e animação suave; sem depender só de cor
+    (mostre também o número/ícone) por acessibilidade.
+  - Fontes grandes e áreas de toque >= 44 px.
+  - Atalhos de teclado no desktop: "/" foca o console, "Esc" sai.
+  - Toasts discretos para eventos ("Você recebeu 2x Poção de Cura").
+  - Indicador de conexão (online/reconectando) sempre visível.
+  - Sem telas desnecessárias: o jogador deve conseguir abrir o link e ver sua
+    ficha em no máximo 2 toques.
+
+--------------------------------------------------------------------------------
+8. SEGURANÇA (checklist obrigatório)
+--------------------------------------------------------------------------------
+  [ ] Autorização por recurso em TODA rota e em TODO handler WebSocket
+  [ ] Zod validando toda entrada; limites de tamanho de payload
+  [ ] Consultas SQL parametrizadas (nunca concatenar string)
+  [ ] Escapar saída no frontend (sem dangerouslySetInnerHTML com dado do
+      usuário); se houver markdown em notas, sanitizar (DOMPurify)
+  [ ] Cookies httpOnly, SameSite, Secure quando HTTPS; proteção CSRF para
+      rotas que alteram estado (token ou verificação de Origin)
+  [ ] Verificar o header Origin no handshake do WebSocket
+  [ ] Rate limit no login e nos comandos
+  [ ] Upload de áudio: validar extensão E tipo real (magic bytes), limitar
+      tamanho, nome de arquivo gerado pelo servidor (evitar path traversal)
+  [ ] Cabeçalhos de segurança (helmet/CSP restritiva)
+  [ ] Container roda como usuário não-root, filesystem de somente leitura
+      quando possível, sem privilégios extras
+  [ ] Segredos por variável de ambiente / Docker secrets; nada no repositório
+  [ ] Testes específicos provando que o jogador A não consegue ler nem alterar
+      dados do jogador B por API, WebSocket ou comando
+  [ ] Dependências auditadas (npm audit) e versões fixadas por lockfile
+
+--------------------------------------------------------------------------------
+9. DOCKER E TAILSCALE
+--------------------------------------------------------------------------------
+Docker:
+  - Dockerfile multi-stage: build do web + server, imagem final enxuta
+    (node:20-alpine ou distroless), usuário não-root, HEALTHCHECK em /healthz.
+  - O servidor Node serve a API, o WebSocket e os arquivos estáticos do
+    frontend (um único serviço, uma única porta, ex.: 3000).
+  - docker-compose.yml com:
+        volumes:  ./data -> /data (SQLite)   ./music -> /music
+        env:      NODE_ENV, PORT, SESSION_SECRET, ADMIN_USER, ADMIN_PASSWORD,
+                  TRUST_PROXY, TZ=America/Sao_Paulo
+        restart:  unless-stopped
+  - Arquivo .env.example documentado.
+
+Tailscale — documente e implemente a opção A como padrão, e descreva a B:
+
+  Opção A (recomendada): Tailscale no HOST
+    - O host que roda o Docker já está no tailnet.
+    - Publicar a porta só no localhost: "127.0.0.1:3000:3000".
+    - Usar "tailscale serve" para expor com HTTPS automático dentro do tailnet:
+          tailscale serve --bg 3000
+      Isso entrega https://<maquina>.<tailnet>.ts.net com certificado válido
+      (necessário para cookies Secure e melhor compatibilidade de áudio).
+    - NÃO usar "tailscale funnel" (isso expõe à internet pública).
+
+  Opção B: sidecar Tailscale no docker-compose
+    - Serviço "tailscale" (imagem oficial) com TS_AUTHKEY, TS_STATE_DIR,
+      TS_SERVE_CONFIG; o app usa network_mode: "service:tailscale".
+    - Documente as variáveis, onde gerar a auth key e como persistir o estado.
+
+  Como os JOGADORES acessam (documentar passo a passo, em linguagem leiga):
+    - Cada jogador instala o Tailscale e entra no seu tailnet (convite de
+      usuário) OU o Mestre compartilha a máquina ("Share node") com a conta
+      Tailscale de cada jogador. Explique as duas formas e a diferença.
+    - Sugerir ACL: jogadores só enxergam a porta do servidor da mesa, nada
+      mais da rede do Mestre.
+    - Passo a passo com prints textuais: instalar -> logar -> abrir URL ->
+      adicionar à tela inicial do celular (PWA).
+
+  Configurar TRUST_PROXY corretamente para obter o IP real atrás do
+  "tailscale serve".
+
+PWA (opcional, barato): manifest + service worker mínimo só para "instalar" o
+app no celular; NÃO fazer cache agressivo de dados da ficha.
+
+--------------------------------------------------------------------------------
+10. METODOLOGIA DE TRABALHO (siga rigorosamente)
+--------------------------------------------------------------------------------
+  1. Antes de codar, crie /docs com: ARQUITETURA.md (diagrama em texto/mermaid,
+     módulos, fluxo de comando, fluxo de sincronização de áudio),
+     MODELO_DE_DADOS.md, DECISOES.md e COMANDOS.md.
+  2. Trabalhe em fases (seção 11). Ao fim de cada fase: testes passando, app
+     subindo via "docker compose up", README atualizado, commit git com
+     mensagem clara (Conventional Commits).
+  3. Desenvolvimento orientado a testes nas partes críticas: policy de
+     permissões, parser de comandos, regras de HP/itens, relógio de áudio.
+  4. Camadas: routes/ws -> commands/services -> policy -> repositories(db).
+     Sem SQL fora dos repositórios; sem regra de negócio nos handlers HTTP/WS.
+  5. Tipos e schemas Zod ficam em /shared e são a única fonte de verdade.
+  6. Cada fase termina com uma checklist de aceite marcada explicitamente.
+     Se algo não estiver pronto, diga o que falta; não declare sucesso sem
+     ter rodado os testes e o container.
+  7. Não adicione funcionalidades não pedidas. Sugestões vão para
+     docs/IDEIAS_FUTURAS.md.
+  8. Faça seed de dados de demonstração (1 GM, 3 jogadores, itens, 1 playlist
+     com faixas de teste geradas/livres de direitos) via "npm run seed".
+  9. Ao terminar, entregue um resumo: o que foi feito, como rodar, como testar,
+     limitações conhecidas e próximos passos.
+
+--------------------------------------------------------------------------------
+11. FASES E CRITÉRIOS DE ACEITE
+--------------------------------------------------------------------------------
+
+FASE 0 - Fundação
+  - Monorepo, TypeScript, lint/format, Vitest, estrutura de pastas, docs
+    iniciais, Dockerfile + compose rodando um "hello" com /healthz.
+  Aceite: "docker compose up" sobe; /healthz responde 200.
+
+FASE 1 - Autenticação e usuários
+  - Banco + migrações, login/logout, sessão, bootstrap do GM, CRUD de
+    jogadores pelo GM, troca de senha, rate limit.
+  Aceite: jogador loga e vê página vazia; rota protegida sem login retorna 401;
+  testes de sessão e rate limit passando.
+
+FASE 2 - Fichas, status, HP, condições (interface gráfica)
+  - Templates de ficha, CRUD de personagens, edição de atributos, HP com
+    temporário, condições, XP/nível, painel do jogador e do GM.
+  Aceite: GM edita HP de um jogador e este NÃO vê nada de outro jogador;
+  testes de policy cobrindo leitura/escrita cruzada.
+
+FASE 3 - Itens e inventário
+  - Catálogo, inventário, equipar/usar/dar/tirar, itens ocultos, peso.
+  Aceite: fluxo completo de dar item pelo GM e usar pelo jogador, tudo
+  refletido no log.
+
+FASE 4 - Tempo real
+  - WebSocket autenticado, canais com filtro de visibilidade, snapshot de
+    reconexão, optimistic locking, indicador de conexão.
+  Aceite: dois navegadores; alteração do GM aparece no jogador em < 300 ms;
+  derrubar e religar a rede ressincroniza sem recarregar a página.
+
+FASE 5 - Console de comandos
+  - Registro de comandos, parser, autocomplete, histórico, /ajuda, /rolar,
+    todos os comandos da seção 6.4, /desfazer, log público/privado.
+  Aceite: cada comando produz exatamente o mesmo efeito que seu equivalente
+  gráfico (mesma camada de serviço); >= 40 testes do parser; jogador não
+  consegue usar comando de GM nem mirar outra ficha.
+
+FASE 6 - Encontros e NPCs
+  - NPCs, iniciativa, turnos, rodadas, duração de condições, visibilidade
+    de HP de NPC.
+  Aceite: GM roda um combate de teste completo.
+
+FASE 7 - Música sincronizada
+  - Upload/biblioteca, playlists, fila, player do GM, player dos jogadores,
+    sincronização de relógio, correção de deriva, entrada tardia, botão de
+    destravar áudio, painel debug de offset.
+  Aceite: com 3 abas/dispositivos tocando, desvio visível <= 150 ms; trocar
+  de faixa, pausar, pular e dar seek propagam para todos; quem entra no meio
+  cai na posição certa; testes de relógio passando.
+
+FASE 8 - Endurecimento, Tailscale e documentação
+  - Passar toda a checklist da seção 8, backup/exportação, PWA opcional,
+    guia Tailscale (opções A e B), guia para os jogadores, README final.
+  Aceite: instalação do zero seguindo apenas o README funciona; acesso
+  remoto por Tailscale validado; checklist de segurança toda marcada.
+
+FASE 9 (opcional) - Extras
+  - SFX sincronizados, tema claro, múltiplas campanhas/mesas, importação de
+    fichas, rolagens com macros salvas.
+
+--------------------------------------------------------------------------------
+12. ENTREGÁVEIS FINAIS
+--------------------------------------------------------------------------------
+  - Repositório git organizado, com histórico de commits por fase
+  - docker-compose.yml + Dockerfile + .env.example
+  - README.md (instalação, uso, backup, troubleshooting)
+  - docs/: ARQUITETURA, MODELO_DE_DADOS, COMANDOS, DECISOES, TAILSCALE,
+    GUIA_DO_JOGADOR, GUIA_DO_MESTRE, IDEIAS_FUTURAS
+  - Testes automatizados e instruções para rodá-los
+  - Script de seed e script de backup
+
+--------------------------------------------------------------------------------
+13. COMO COMEÇAR AGORA
+--------------------------------------------------------------------------------
+  1. Leia este documento inteiro.
+  2. Responda com um resumo do plano (máx. 20 linhas) e a lista de decisões
+     técnicas que você tomará onde eu dei liberdade.
+  3. Execute a FASE 0 e mostre o resultado antes de seguir para a FASE 1.
+  4. Daqui em diante, ao concluir cada fase, apresente a checklist de aceite
+     preenchida e peça confirmação apenas se houver decisão que me envolva.
+
+================================================================================
+FIM DO PROMPT
+================================================================================
